@@ -24,7 +24,7 @@ const register = async (username, email, password) => {
     return await newUser.save();
 }
 
-const login = async (email, password) => {
+const login = async (email, password, lat, long) => {
     const user = await User.findOne({ email });
     if (!user) {
         return { success: false, status: 400, message: "User not found" };
@@ -66,7 +66,7 @@ const login = async (email, password) => {
         user.loginAttempts += 1;
         if (user.loginAttempts >= 5) {
             user.lockUntil = Date.now() + 1 * 60 * 1000; // 1 Minute Lock
-            sendSecurityAlert(user.email, user.username);
+            sendSecurityAlert(user.email, user.username, lat, long);
             await user.save();
             return {
                 success: false,

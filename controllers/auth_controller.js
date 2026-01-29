@@ -12,13 +12,15 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        const result = await authService.login(email, password);
+        // lat, long ပါ လက်ခံမယ်
+        const { email, password, lat, long } = req.body; 
+        
+        // Service ကို lat, long ပါ ထည့်ပေးလိုက်မယ်
+        const result = await authService.login(email, password, lat, long);
 
         if (!result.success) {
             return res.status(result.status).json({ message: result.message });
         }
-
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -27,6 +29,8 @@ exports.login = async (req, res) => {
 
 exports.verifyOTP = async (req, res) => {
     try {
+        console.log('I am here');
+        
         const { username, otp } = req.body;
         const result = await authService.verifyOTP(username, otp);
 
