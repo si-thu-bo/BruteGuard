@@ -43,6 +43,26 @@ const sendSecurityAlert = async (email, username, lat, long) => {
     }
 }
 
+const sendRegistrationOTP = async (email, otpCode) => {
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+
+    await transporter.sendMail({
+        from: `"BruteGuard Team" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: '📩 Verify your email address',
+        html: `
+      <h3>Welcome to BruteGuard!</h3>
+      <p>Please enter the following code to verify your account:</p>
+      <h1 style="color: green;">${otpCode}</h1>
+      <p>This code expires in 10 minutes.</p>
+    `
+    });
+    console.log("📨 Registration OTP Sent to " + email);
+};
+
 const sendOTP = async (email, otpCode) => {
     try {
         const transporter = nodemailer.createTransport({
@@ -73,4 +93,4 @@ const sendOTP = async (email, otpCode) => {
     }
 }
 
-module.exports = { sendSecurityAlert, sendOTP }; 
+module.exports = { sendSecurityAlert, sendOTP, sendRegistrationOTP }; 

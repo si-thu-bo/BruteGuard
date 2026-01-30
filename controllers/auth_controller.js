@@ -2,19 +2,29 @@ const authService = require('../services/auth_service');
 
 exports.register = async (req, res) => {
     try {
-        const { username,email, password } = req.body;
-        await authService.register(username,email,  password);
-        res.status(201).json({ message: "User registered successfully" });
+        const { username, email, password } = req.body;
+        const result = await authService.register(username, email, password);
+        res.status(201).json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+exports.verifyRegistration = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        const result = await authService.verifyRegistration(email, otp);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
     }
 };
 
 exports.login = async (req, res) => {
     try {
         // lat, long ပါ လက်ခံမယ်
-        const { email, password, lat, long } = req.body; 
-        
+        const { email, password, lat, long } = req.body;
+
         // Service ကို lat, long ပါ ထည့်ပေးလိုက်မယ်
         const result = await authService.login(email, password, lat, long);
 
@@ -31,8 +41,8 @@ exports.login = async (req, res) => {
 exports.verifyOTP = async (req, res) => {
     try {
         // Flutter က { email, otp } ပို့လိုက်တာမို့ ဒီလို ဖမ်းရပါမယ်
-        const { email, otp } = req.body; 
-        
+        const { email, otp } = req.body;
+
         console.log("Controller received:", email, otp);
 
         // Service ကို email ပို့ပေးပါ
@@ -46,3 +56,4 @@ exports.verifyOTP = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
