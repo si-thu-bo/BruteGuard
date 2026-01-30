@@ -84,8 +84,13 @@ const login = async (email, password, lat, long) => {
     }
 }
 
-const verifyOTP = async (username, otp) => {
-    const user = await User.findOne({ username });
+const verifyOTP = async (email, otp) => {
+    
+    console.log("Received Email:", email); // Log ထုတ်ကြည့်မယ်
+
+    // (2) Database မှာ username နဲ့ မရှာဘဲ email နဲ့ ရှာပါမယ်
+    const user = await User.findOne({ email }); 
+
     if (!user) return { success: false, status: 400, message: "User not found" };
 
     // OTP ရှိမရှိ နဲ့ သက်တမ်းကုန်မကုန် စစ်မယ်

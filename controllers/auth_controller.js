@@ -27,12 +27,16 @@ exports.login = async (req, res) => {
     }
 };
 
+
 exports.verifyOTP = async (req, res) => {
     try {
-        console.log('I am here');
+        // Flutter က { email, otp } ပို့လိုက်တာမို့ ဒီလို ဖမ်းရပါမယ်
+        const { email, otp } = req.body; 
         
-        const { username, otp } = req.body;
-        const result = await authService.verifyOTP(username, otp);
+        console.log("Controller received:", email, otp);
+
+        // Service ကို email ပို့ပေးပါ
+        const result = await authService.verifyOTP(email, otp);
 
         if (!result.success) {
             return res.status(result.status).json({ message: result.message });
