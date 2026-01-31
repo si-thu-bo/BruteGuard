@@ -2,6 +2,7 @@ const User = require('../models/user_model');
 const bcrypt = require('bcryptjs');
 const emailValidator = require('deep-email-validator');
 const { sendSecurityAlert, sendOTP, sendRegistrationOTP } = require('../utils/emailSender');
+const login_history_model = require('../models/login_history_model');
 
 const register = async (username, email, password) => {
 
@@ -56,7 +57,7 @@ const verifyRegistration = async (email, otp) => {
     return { success: true, message: "Email Verified Successfully! You can now login." };
 };
 
-const login = async (email, password, lat, long) => {
+const login = async (email, password, lat, long, device, ip) => {
     const user = await User.findOne({ email });
     if (!user) {
         return { success: false, status: 400, message: "User not found" };
@@ -101,7 +102,7 @@ const login = async (email, password, lat, long) => {
         user.loginAttempts += 1;
         if (user.loginAttempts >= 5) {
             user.lockUntil = Date.now() + 1 * 60 * 1000; // 1 Minute Lock
-            sendSecurityAlert(user.email, user.username, lat, long);
+            sendSecurityAlert(user.email, user.username,lat, long, device, ip);
             await user.save();
             return {
                 success: false,
@@ -119,7 +120,7 @@ const login = async (email, password, lat, long) => {
     }
 }
 
-const verifyOTP = async (email, otp) => {
+const verifyOTP = async (email, otp, ip, device, lat, long) => {
 
     console.log("Received Email:", email); // Log ထုတ်ကြည့်မယ်
 
@@ -136,7 +137,12 @@ const verifyOTP = async (email, otp) => {
     if (user.otpExpires < Date.now()) {
         return { success: false, status: 400, message: "OTP Expired" };
     }
-
+    await login_history_model.create({
+        email: user.email,
+        ip: ip,
+        device: device || "Unknown Device",
+        location: `${lat}, ${long}`
+    });
     // မှန်ရင် OTP ကို ပြန်ဖျက်မယ်
     user.otp = undefined;
     user.otpExpires = undefined;
@@ -145,9 +151,15 @@ const verifyOTP = async (email, otp) => {
     return { success: true, message: "Login Fully Successful! Access Granted." }
 }
 
+const getLoginHistory = async (email) => {
+    const results = await login_history_model.find({ email }).sort({ loginTime: -1 }).limit(10);
+    return results;
+}
+
 module.exports = {
     register,
     login,
     verifyOTP,
-    verifyRegistration
+    verifyRegistration,
+    getLoginHistory
 }

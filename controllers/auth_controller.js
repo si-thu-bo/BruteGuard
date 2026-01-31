@@ -23,10 +23,10 @@ exports.verifyRegistration = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         // lat, long ပါ လက်ခံမယ်
-        const { email, password, lat, long } = req.body;
-
+        const { email, password, lat, long, device } = req.body;
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
         // Service ကို lat, long ပါ ထည့်ပေးလိုက်မယ်
-        const result = await authService.login(email, password, lat, long);
+        const result = await authService.login(email, password, lat, long, device, ip);
 
         if (!result.success) {
             return res.status(result.status).json({ message: result.message });
@@ -37,16 +37,23 @@ exports.login = async (req, res) => {
     }
 };
 
+exports.getHistory = async (req, res) => {
+    try {
+        const { email } = req.params;
+        const history = await authService.getLoginHistory(email);
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
 
 exports.verifyOTP = async (req, res) => {
     try {
         // Flutter က { email, otp } ပို့လိုက်တာမို့ ဒီလို ဖမ်းရပါမယ်
-        const { email, otp } = req.body;
-
-        console.log("Controller received:", email, otp);
-
+        const { email, otp, lat, long, device } = req.body;
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
         // Service ကို email ပို့ပေးပါ
-        const result = await authService.verifyOTP(email, otp);
+        const result = await authService.verifyOTP(email, otp, ip, device, lat, long);
 
         if (!result.success) {
             return res.status(result.status).json({ message: result.message });
