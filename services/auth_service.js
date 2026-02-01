@@ -2,7 +2,6 @@ const User = require('../models/user_model');
 const bcrypt = require('bcryptjs');
 const emailValidator = require('deep-email-validator');
 const { sendSecurityAlert, sendOTP, sendRegistrationOTP } = require('../utils/emailSender');
-const login_history_model = require('../models/login_history_model');
 const LoginHistory = require('../models/login_history');
 
 
@@ -205,14 +204,13 @@ const login = async (email, password, lat, long, device, ip) => {
 
 const verifyOTP = async (email, otp, ip, device, lat, long) => {
 
-    console.log("Received Email:", email); // Log ထုတ်ကြည့်မယ်
+    console.log("Received Email:", email); 
 
-    // (2) Database မှာ username နဲ့ မရှာဘဲ email နဲ့ ရှာပါမယ်
     const user = await User.findOne({ email });
 
     if (!user) return { success: false, status: 400, message: "User not found" };
 
-    // OTP ရှိမရှိ နဲ့ သက်တမ်းကုန်မကုန် စစ်မယ်
+    // OTP စစ်ဆေးခြင်း
     if (!user.otp || user.otp !== otp) {
         return { success: false, status: 400, message: "Invalid OTP" };
     }
@@ -220,12 +218,24 @@ const verifyOTP = async (email, otp, ip, device, lat, long) => {
     if (user.otpExpires < Date.now()) {
         return { success: false, status: 400, message: "OTP Expired" };
     }
-    await login_history_model.create({
-        email: user.email,
-        ip: ip,
-        device: device || "Unknown Device",
-        location: `${lat}, ${long}`
-    });
+
+    // *** ပြင်ဆင်ထားသော အပိုင်း ***
+    // LoginHistory Model ကိုသုံးပြီး သိမ်းပါမယ်
+    try {
+        await LoginHistory.create({
+            email: user.email,
+            ip: ip,
+            device: device || "Unknown Device",
+            lat: lat,   // Model မှာ Number type နဲ့ကြေညာထားလို့ ဒီအတိုင်းထည့်ပါ
+            long: long, // Model မှာ Number type နဲ့ကြေညာထားလို့ ဒီအတိုင်းထည့်ပါ
+            loginTime: Date.now()
+        });
+    } catch (error) {
+        console.error("History Save Error:", error.message);
+        // History သိမ်းမရရုံနဲ့ Login မfail စေချင်ရင် try-catch ခံထားတာပါ
+    }
+    // *************************
+
     // မှန်ရင် OTP ကို ပြန်ဖျက်မယ်
     user.otp = undefined;
     user.otpExpires = undefined;
