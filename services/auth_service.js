@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const emailValidator = require('deep-email-validator');
 const { sendSecurityAlert, sendOTP, sendRegistrationOTP } = require('../utils/emailSender');
 const login_history_model = require('../models/login_history_model');
+const LoginHistory = require('../models/login_history');
+
 
 const register = async (username, email, password) => {
 
@@ -57,16 +59,83 @@ const verifyRegistration = async (email, otp) => {
     return { success: true, message: "Email Verified Successfully! You can now login." };
 };
 
+// const login = async (email, password, lat, long, device, ip) => {
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//         return { success: false, status: 400, message: "User not found" };
+//     }
+
+//     if (!user.isVerified) {
+//         return { success: false, status: 403, message: "Please verify your email first." };
+//     }
+
+//     if (user.lockUntil && user.lockUntil > Date.now()) {
+//         const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
+//         return {
+//             success: false,
+//             status: 403,
+//             message: `Account locked. Try again in ${remainingTime} seconds.`
+//         };
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+
+//     if (isMatch) {
+//         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+//         user.otp = otpCode;
+//         user.otpExpires = Date.now() + 10 * 60 * 1000;
+
+
+//         user.loginAttempts = 0;
+//         user.lockUntil = undefined;
+
+//         await user.save();
+
+//         sendOTP(user.email, otpCode);
+
+//         // (D) Controller ဆီကို OTP လိုတယ်ဆိုတဲ့ flag နဲ့ ပြန်ပြောမယ်
+//         return {
+//             success: true,
+//             requireOTP: true,
+//             message: "Password correct. Please verify OTP sent to your email."
+//         };
+//     } else {
+//         user.loginAttempts += 1;
+//         if (user.loginAttempts >= 5) {
+//             user.lockUntil = Date.now() + 1 * 60 * 1000; // 1 Minute Lock
+//             sendSecurityAlert(user.email, user.username,lat, long, device, ip);
+//             await user.save();
+//             return {
+//                 success: false,
+//                 status: 403,
+//                 message: "Too many failed attempts. Account locked for 1 minute."
+//             };
+//         }
+
+//         await user.save();
+//         return {
+//             success: false,
+//             status: 401,
+//             message: `Incorrect Password. Attempts remaining: ${5 - user.loginAttempts}`
+//         };
+//     }
+// }
+
 const login = async (email, password, lat, long, device, ip) => {
+    
+    // 1. Email နဲ့ User ရှာမယ်
     const user = await User.findOne({ email });
     if (!user) {
         return { success: false, status: 400, message: "User not found" };
     }
 
+    // 2. Email Verify ဖြစ်မဖြစ် စစ်မယ်
     if (!user.isVerified) {
         return { success: false, status: 403, message: "Please verify your email first." };
     }
 
+    // 3. Account Lock ကျနေလား စစ်မယ်
     if (user.lockUntil && user.lockUntil > Date.now()) {
         const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
         return {
@@ -76,33 +145,47 @@ const login = async (email, password, lat, long, device, ip) => {
         };
     }
 
+    // 4. Password တိုက်စစ်မယ်
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (isMatch) {
+        // --- Password မှန်ရင် ---
+        
+        // OTP ထုတ်မယ်
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         user.otp = otpCode;
-        user.otpExpires = Date.now() + 10 * 60 * 1000;
+        user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 မိနစ် သက်တမ်း
 
-
+        // Login အမှားအကြိမ်ရေ ပြန် reset လုပ်မယ်
         user.loginAttempts = 0;
         user.lockUntil = undefined;
 
         await user.save();
 
-        sendOTP(user.email, otpCode);
+        // OTP Email ပို့မယ်
+        await sendOTP(user.email, otpCode);
 
-        // (D) Controller ဆီကို OTP လိုတယ်ဆိုတဲ့ flag နဲ့ ပြန်ပြောမယ်
+        // Controller ကို Success လို့ ပြန်ပြောမယ်
         return {
             success: true,
             requireOTP: true,
             message: "Password correct. Please verify OTP sent to your email."
         };
+
     } else {
+        // --- Password မှားရင် ---
+
         user.loginAttempts += 1;
+
+        // ၅ ကြိမ်ထက်ပိုမှားရင် Lock ချမယ်
         if (user.loginAttempts >= 5) {
             user.lockUntil = Date.now() + 1 * 60 * 1000; // 1 Minute Lock
-            sendSecurityAlert(user.email, user.username,lat, long, device, ip);
+            
+            // *** အရေးကြီးသော နေရာ ***
+            // Alert Email ပို့တဲ့အခါ တည်နေရာနဲ့ Device အချက်အလက်ပါ ထည့်ပို့မယ်
+            await sendSecurityAlert(user.email, user.username, lat, long, device, ip);
+            
             await user.save();
             return {
                 success: false,
@@ -118,7 +201,7 @@ const login = async (email, password, lat, long, device, ip) => {
             message: `Incorrect Password. Attempts remaining: ${5 - user.loginAttempts}`
         };
     }
-}
+};
 
 const verifyOTP = async (email, otp, ip, device, lat, long) => {
 
@@ -151,8 +234,13 @@ const verifyOTP = async (email, otp, ip, device, lat, long) => {
     return { success: true, message: "Login Fully Successful! Access Granted." }
 }
 
+// const getLoginHistory = async (email) => {
+//     const results = await login_history_model.find({ email }).sort({ loginTime: -1 }).limit(10);
+//     return results;
+// }
 const getLoginHistory = async (email) => {
-    const results = await login_history_model.find({ email }).sort({ loginTime: -1 }).limit(10);
+    // LoginHistory ဆိုတဲ့ နာမည်နဲ့ ပြန်သုံးပါ
+    const results = await LoginHistory.find({ email }).sort({ loginTime: -1 }).limit(10);
     return results;
 }
 
